@@ -1,0 +1,499 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<style>html{color-scheme:light}body{margin:0}</style>
+<title>SYSINT Reviewer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,800&family=Source+Sans+3:wght@400;600;700&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* Layout: one centered column. Header with subject chips, three mode tabs, set and topic filters, then a single working card. */
+:root{
+  --bg:#EDF0F5; --surface:#FFFFFF; --ink:#131C2B; --muted:#586577; --line:#D2D9E4;
+  --accent:#2B55C9; --accent-ink:#FFFFFF; --tint:#E0E8FA;
+  --good:#15803D; --good-bg:#E3F3E8; --bad:#B42318; --bad-bg:#FBE7E4;
+  --f-display:'Fraunces',Georgia,'Times New Roman',serif;
+  --f-body:'Source Sans 3','Segoe UI',system-ui,-apple-system,sans-serif;
+  --f-mono:'IBM Plex Mono',ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0C1320; --surface:#152033; --ink:#E7ECF4; --muted:#93A1B5; --line:#283850;
+    --accent:#7DA2FF; --accent-ink:#0A1630; --tint:#18284A;
+    --good:#4ADE80; --good-bg:#12331F; --bad:#F87171; --bad-bg:#3A1A18;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0C1320; --surface:#152033; --ink:#E7ECF4; --muted:#93A1B5; --line:#283850;
+  --accent:#7DA2FF; --accent-ink:#0A1630; --tint:#18284A;
+  --good:#4ADE80; --good-bg:#12331F; --bad:#F87171; --bad-bg:#3A1A18;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.5;padding-inline:16px;padding-block:24px 56px}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.wrap{max-width:760px;margin:0 auto;display:grid;gap:18px}
+
+header{display:grid;gap:12px}
+h1{font-family:var(--f-display);font-weight:800;font-size:clamp(1.7rem,6vw,2.4rem);line-height:1.1;margin:0;text-wrap:balance}
+.sub{margin:6px 0 0;color:var(--muted);font-size:.95rem;max-width:54ch}
+.chips-h{display:flex;flex-wrap:wrap;gap:6px}
+.chips-h span{background:var(--tint);color:var(--accent);border-radius:8px;padding:2px 10px;font-family:var(--f-mono);font-size:.82rem}
+
+.tabs{display:grid;grid-template-columns:repeat(3,1fr);border-bottom:2px solid var(--line)}
+.tab{background:none;border:0;border-bottom:3px solid transparent;margin-bottom:-2px;padding:10px 4px;font-weight:600;color:var(--muted)}
+.tab[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+
+.filters{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.chip{background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:5px 12px;font-size:.88rem;color:var(--ink)}
+.chip span{color:var(--muted);font-family:var(--f-mono);font-size:.78rem;margin-left:4px}
+.chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.chip[aria-pressed="true"] span{color:inherit;opacity:.85}
+.sep{flex:0 0 1px;align-self:stretch;background:var(--line);margin-inline:4px}
+.poolnote{font-size:.85rem;color:var(--muted);margin:0}
+
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:22px;display:grid;gap:16px;min-width:0}
+.meta{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;font-size:.82rem;color:var(--muted)}
+.meta .qn{font-family:var(--f-mono)}
+.meta .grow{flex:1}
+.tag{background:var(--tint);color:var(--accent);border-radius:6px;padding:1px 8px;font-weight:600}
+.bar{height:4px;background:var(--line);border-radius:4px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--accent)}
+.prompt{font-family:var(--f-display);font-weight:600;font-size:clamp(1.12rem,3.5vw,1.35rem);line-height:1.4;margin:0;overflow-wrap:anywhere}
+.opts{display:grid;gap:8px}
+.opt{display:flex;gap:12px;align-items:flex-start;text-align:left;background:var(--bg);border:1.5px solid var(--line);border-radius:10px;padding:12px 14px;min-width:0}
+.opt span{min-width:0;overflow-wrap:anywhere}
+.pos{flex:0 0 1.5rem;height:1.5rem;border-radius:50%;background:var(--surface);border:1px solid var(--line);display:grid;place-items:center;font-family:var(--f-mono);font-size:.78rem;font-weight:500;color:var(--muted)}
+.opt:hover:not(:disabled){border-color:var(--accent)}
+.opt:disabled{cursor:default}
+.opt.sel{border-color:var(--accent);background:var(--tint)}
+.opt.sel .pos{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.opt.correct{background:var(--good-bg);border-color:var(--good)}
+.opt.correct .pos{background:var(--good);border-color:var(--good);color:var(--surface)}
+.opt.missed{background:var(--good-bg);border:1.5px dashed var(--good)}
+.opt.wrong{background:var(--bad-bg);border-color:var(--bad)}
+.opt.wrong .pos{background:var(--bad);border-color:var(--bad);color:var(--surface)}
+.opt.dim{opacity:.55}
+.btn{background:var(--accent);color:var(--accent-ink);border:0;border-radius:10px;padding:11px 18px;font-weight:700}
+.btn.ghost{background:transparent;color:var(--ink);border:1.5px solid var(--line)}
+.btn:disabled{opacity:.45;cursor:default}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.row .grow{flex:1}
+.fb{border-radius:10px;padding:12px 14px;font-weight:600;overflow-wrap:anywhere}
+.fb.ok{background:var(--good-bg);color:var(--good)}
+.fb.no{background:var(--bad-bg);color:var(--bad)}
+.fb b{color:var(--ink)}
+.note{background:var(--tint);border-radius:10px;padding:10px 14px;font-size:.92rem;overflow-wrap:anywhere}
+.hint{font-size:.85rem;color:var(--muted);margin:0}
+
+.flash{background:var(--bg);border:1.5px solid var(--line);border-radius:12px;padding:24px 20px;min-height:220px;display:grid;gap:12px;align-content:center;text-align:left;width:100%;min-width:0}
+.flash .big{font-family:var(--f-display);font-weight:800;font-size:clamp(1.25rem,5vw,1.7rem);line-height:1.3;overflow-wrap:anywhere;margin:0}
+.flash ol{margin:0;padding-left:1.3rem;color:var(--muted)}
+.flash ol li{overflow-wrap:anywhere}
+.flash .lbl{font-size:.75rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:700}
+.flash.back{border-color:var(--accent);background:var(--tint)}
+.status{font-size:.8rem;font-weight:700}
+.status.k{color:var(--good)} .status.m{color:var(--bad)}
+
+.score{font-family:var(--f-display);font-weight:800;font-size:clamp(2.4rem,10vw,3.4rem);line-height:1;margin:0}
+.tb{display:grid;gap:10px}
+.tb div{display:grid;grid-template-columns:minmax(0,11rem) 1fr auto;gap:10px;align-items:center;font-size:.9rem}
+.tb .bar{height:8px}
+.tb em{font-style:normal;font-family:var(--f-mono);font-size:.8rem;color:var(--muted)}
+.miss{display:grid;gap:10px;margin:0;padding:0;list-style:none}
+.miss li{border-top:1px solid var(--line);padding-top:8px;font-size:.92rem;overflow-wrap:anywhere}
+.miss li b{color:var(--good)}
+
+.search{width:100%;background:var(--surface);border:1.5px solid var(--line);border-radius:10px;padding:11px 14px}
+.key{display:grid;gap:0;margin:0;padding:0;list-style:none}
+.key>li{display:grid;gap:6px;padding:16px 0;border-top:1px solid var(--line)}
+.key>li:first-child{border-top:0}
+.key .qn{font-family:var(--f-mono);font-size:.78rem;color:var(--muted)}
+.key .q{font-weight:600;overflow-wrap:anywhere}
+.key ol{margin:0;padding:0;list-style:none;display:grid;gap:3px;font-size:.93rem}
+.key ol li{display:flex;gap:8px;padding:3px 8px;border-radius:6px;color:var(--muted)}
+.key ol li i{font-style:normal;font-family:var(--f-mono);flex:0 0 1rem}
+.key ol li span{min-width:0;overflow-wrap:anywhere}
+.key ol li.right{background:var(--good-bg);color:var(--ink);font-weight:600}
+.empty{text-align:center;color:var(--muted);padding:24px 0}
+
+@media (prefers-reduced-motion:no-preference){
+  .bar i{transition:width .25s ease}
+  .opt,.chip,.tab{transition:border-color .12s,background .12s}
+}
+@media (max-width:480px){
+  .card{padding:16px}
+  .tb div{grid-template-columns:minmax(0,7.5rem) 1fr auto}
+}
+</style>
+</head>
+<body>
+
+
+<div class="wrap">
+  <header>
+    <div>
+      <h1>SYSINT Reviewer</h1>
+      <p class="sub">IT0129 Systems Integration and Architecture 2. Summative 2 and Midterms, 80 questions, with the answers Canvas marked correct.</p>
+    </div>
+    <div class="chips-h" aria-hidden="true"><span>n(n−1)/2</span><span>0.99⁴ ≈ 96%</span><span>expand → contract</span></div>
+  </header>
+
+  <div class="tabs" role="tablist" id="tabs">
+    <button class="tab" role="tab" data-a="mode" data-v="quiz" aria-selected="true">Quiz</button>
+    <button class="tab" role="tab" data-a="mode" data-v="cards" aria-selected="false">Flashcards</button>
+    <button class="tab" role="tab" data-a="mode" data-v="key" aria-selected="false">Answer key</button>
+  </div>
+
+  <div class="filters" id="filters"></div>
+  <p class="poolnote" id="poolnote"></p>
+
+  <main id="view"></main>
+</div>
+
+<script>
+(function(){
+  var T=['True','False'];
+  var QS=[];
+  function add(set,num,topic,prompt,opts,ans,note){
+    QS.push({id:(set==='S'?0:100)+num,set:set,num:num,topic:topic,prompt:prompt,options:opts,answer:ans,multi:Array.isArray(ans),note:note||''});
+  }
+
+  /* ---------- Summative 2 ---------- */
+  add('S',1,'rest','REST offers weaker formal contracts than WSDL unless you:',['Use XML instead of JSON','Impose schema discipline with OpenAPI or JSON Schema','Increase timeout values','Add more HTTP verbs'],2);
+  add('S',2,'test','What does an integration test catch that a contract test does not?',['A violation of the published contract','Problems the contract never anticipated, arising when both sides actually run','A syntax error in the provider','An unformatted log message'],2);
+  add('S',3,'rest','A layered system constraint in REST means:',['The application must have three tiers','A client cannot tell whether it is talking to the origin server or a proxy','Every request passes through every layer','Layers must be physically separate machines'],2);
+  add('S',4,'rest','Which are REST design constraints? (select all that apply)',['Stateless requests','Uniform interface','Cacheability declared by responses','Layered system','Mandatory XML payloads'],[1,2,3,4]);
+  add('S',5,'rest','Beyond operation signatures, a useful contract specifies:',["The provider's staffing plan",'Field semantics, the complete error set, and the rules for changing the contract','The physical server locations',"The provider's coverage percentage"],2);
+  add('S',6,'rest','The REST uniform interface constraint means:',['All services look identical to users','Resources are identified by URI and standard verbs carry standard meanings','All responses share one schema','Only GET may be used'],2);
+  add('S',7,'rest','Returning a stack trace across a boundary is poor practice because it:',['Increases response size only','Leaks internal detail and gives the consumer nothing structured to handle','Violates the REST specification','Prevents caching'],2);
+  add('S',8,'life','Which are common integration pitfalls? (select all that apply)',['Assuming shared data semantics','Designing and testing only the happy path',"Coupling to another system's internal model",'Neglecting versioning','Publishing an interface definition before implementation'],[1,2,3,4]);
+  add('S',9,'life','A legacy system offering only nightly batch access when you need near-real-time data is:',['A defect in the legacy system','An integration constraint that must be designed around','A licensing issue','A performance tuning problem'],2);
+  add('S',10,'design','“Absent”, “empty”, and “zero” must be treated as:',['Equivalent for simplicity','Three distinct states, each explicitly specified','Errors in every case','Interchangeable in JSON'],2);
+  add('S',11,'life','In the integration life cycle, architecture decisions principally constrain:',['The recruitment plan','What construction can then do','The marketing schedule','The licensing model'],2);
+  add('S',12,'arch','A genuine cost of micro-service decomposition is:',['Loss of the ability to scale','Operational complexity, distributed data consistency, and network chattiness','Inability to use HTTP','Loss of independent deployability'],2);
+  add('S',13,'ver','In the expand-then-contract sequence, the first step is to:',['Add the new field or operation alongside the old','Remove the old field immediately','Notify consumers after deployment','Increment the major version'],1);
+  add('S',14,'rest','Inside your own module a sloppy convention costs readability. At a boundary it costs:',['Nothing measurable','A production incident','Compilation time','Documentation effort only'],2);
+  add('S',15,'design','An operation is idempotent when:',['It always returns the same value','Repeating it produces no second side effect','It cannot fail','It runs in constant time'],2);
+  add('S',16,'arch','Which are characteristics of micro-service architecture? (select all that apply)',['Independently deployable services','Each service owning its own data','Lightweight communication, typically REST','A central bus enforcing all policy'],[1,2,3]);
+  add('S',17,'test','Why is a contract test cheaper insurance than an integration test alone?',['It executes more code paths','It is fast and deterministic, catching drift the moment it appears','It replaces unit tests','It requires no assertions'],2);
+  add('S',18,'test','Which test can run without the partner system available?',['An integration test','A contract test','A system test','An acceptance test'],2);
+  add('S',19,'life','Which constraints does a legacy system typically impose? (select all that apply)',['It cannot be modified','It may offer batch-only interfaces','Its data semantics may be undocumented','Its availability windows may not match the new system','It always uses modern authentication'],[1,2,3,4]);
+  add('S',20,'arch','Micro-services eliminate the need to reason about data consistency.',T,2);
+  add('S',21,'rest','WSDL provides a stronger machine-checkable contract than unconstrained REST.',T,1);
+  add('S',22,'arch','Service-Oriented Architecture organises capability into:',['Many small independently deployable services owning their own data','Coarse-grained reusable services, often mediated by a bus','A single monolithic executable','Client-side scripts'],2,'Many small services that own their data describes microservices. SOA is coarse-grained services, often through a bus.');
+  add('S',23,'life','Short iterations that integrate continuously reduce risk because:',['They reduce the total amount of work','They keep each integration surprise small rather than deferring one large one','They remove the need for contract tests','They eliminate partner dependencies'],2);
+  add('S',24,'life','Systems integration management frames integration as:',['A phase after coding completes','A concern running through the entire life cycle','A procurement activity','An operations responsibility'],2);
+  add('S',25,'design','Why does idempotency matter across an integration?',['It reduces payload size','Retries and duplicate deliveries must not create duplicate records or charges','It removes the need for authentication','It guarantees message ordering'],2);
+  add('S',26,'arch','The ESB is simultaneously a governance benefit and:',['A performance optimisation','A single point of failure and an organisational bottleneck','A security guarantee','A substitute for contracts'],2);
+  add('S',27,'life','Integrating both sides at the end of a project is more efficient than integrating continuously.',T,2);
+  add('S',28,'rest','A best practice for web service composition is to design the contract:',['After implementation, by documenting what was built','First, then generate or implement from it','When a second consumer appears','At deployment time'],2);
+  add('S',29,'arch','Point-to-point integration grows as n(n-1)/2 while mediated integration grows linearly.',T,1,'Point-to-point links grow quadratically. A mediator needs about one link per system.');
+  add('S',30,'rest','Which belong in a useful interface contract? (select all that apply)',['The operations and their signatures','The meaning of every field, not just its type','The complete set of error responses','The rules by which the contract may change',"The provider's internal database schema"],[1,2,3,4]);
+  add('S',31,'life',"An anti-corruption layer prevents a partner's internal model from leaking into your design.",T,1);
+  add('S',32,'test','Which are true of contract tests compared with integration tests? (select all that apply)',['Contract tests run without the other party available','Contract tests are faster and more deterministic','Integration tests catch problems the contract did not anticipate','Contract tests replace the need for unit tests'],[1,2,3]);
+  add('S',33,'test','Which failure cases must an integration suite cover?',['Only the successful exchange','Timeout, error response, malformed data, unavailability, and duplicate delivery','Only authentication failures','Only performance under load'],2);
+  add('S',34,'ver','Versioning should begin from day one because:',['It improves performance','A contract with no version is one you cannot change safely','HTTP requires it','It reduces payload size'],2);
+  add('S',35,'arch','An Enterprise Service Bus centralises:',['Application business logic','Routing, transformation, protocol bridging, and policy','User authentication only','Database storage'],2);
+  add('S',36,'arch','Eight systems connected point to point require approximately:',['8 connections','16 connections','28 connections','64 connections'],3,'n(n−1)/2 = 8 × 7 / 2 = 28.');
+  add('S',37,'test','A contract test can be executed without the partner system running.',T,1);
+  add('S',38,'life','Building both sides separately and integrating late is:',['The recommended approach for large teams','The classic and expensive failure pattern','Efficient, since teams work undisturbed','Required by fixed-price contracts'],2);
+  add('S',39,'life','Which are true of Agile Scrum applied to integration teams? (select all that apply)',['The definition of done should include interface tests','Cross-functional teams reduce handover delay','Short iterations shrink the integration surprise','Daily stand-ups remove partner dependencies'],[1,2,3]);
+  add('S',40,'life','A team treating integration as “the bit after coding” has:',['Made it cheaper','Already lost the ability to influence the decisions that constrain it','Simplified their testing','Removed the need for contracts'],2);
+
+  /* ---------- Midterms ---------- */
+  add('M',1,'life','IT0129 differs from IT0023 principally because you must now engineer a system that:',['Uses a different programming paradigm','Must work correctly together with systems you did not build and cannot change','Has no requirements specification','Runs only on cloud infrastructure'],2);
+  add('M',2,'life','Why does psychological safety matter particularly in integration work?',['It replaces the need for contracts','It reduces the need for testing','It shortens the critical path','It determines whether a problem is raised early rather than after the interface is published and consumed'],4);
+  add('M',3,'mccall',"McCall's quality model groups quality factors under three perspectives. Which are they?",['Design, build, deploy','Product operation, product revision, product transition','Cost, schedule, scope','Functional, non-functional, domain'],2);
+  add('M',4,'mccall','Which McCall perspective contains interoperability?',['None; interoperability is not a McCall factor','Product operation','Product revision','Product transition'],4,'Product transition = portability, reusability, interoperability.');
+  add('M',5,'mccall',"Which factors belong to McCall's product operation group?",['Portability, reusability, interoperability','Correctness, reliability, efficiency, integrity, usability','Maintainability, flexibility, testability','Cost, schedule, risk'],2,'Product operation = correctness, reliability, efficiency, integrity, usability.');
+  add('M',6,'mccall',"Which factors belong to McCall's product revision group?",['Portability, reusability, interoperability','Correctness, reliability, efficiency','Usability, integrity, correctness','Maintainability, flexibility, testability'],4);
+  add('M',7,'mccall',"Why is McCall's product transition group the most relevant to this course?",['Because it is the easiest to measure','Because portability, reusability, and interoperability decide whether integration succeeds','Because it is the largest group','Because the other groups apply only to hardware'],2);
+  add('M',8,'mccall','In a standalone system, interoperability is optional. In an integrated system it is:',['A concern only for embedded systems','The point of the exercise','Still optional','Handled entirely by the network layer'],2);
+  add('M',9,'design','Four services are chained, each with 99% availability. The approximate end-to-end availability is:',['99%','About 99.99%','99.9%','About 96%'],4,'0.99⁴ ≈ 0.96, so about 96%.');
+  add('M',10,'design','What does the availability chaining calculation demonstrate?',['That availability is unrelated to the number of dependencies','That redundancy is unnecessary','That end-to-end availability is the product of dependencies, so it falls as the chain lengthens','That availability improves with more services'],3);
+  add('M',11,'life','A standalone architecture asks what structure is best for the system. An integrated architecture asks:',['How many developers are available','Which vendor offers the lowest price','What structure is best given what the system must talk to','Which language the team prefers'],3);
+  add('M',12,'design','A use case diagram for an integration scenario should model an external system as:',['An actor outside the boundary','A use case in its own right','A data store','A subsystem inside the boundary'],1);
+  add('M',13,'design','Why does modelling a system as a human actor cause problems?',['It makes the diagram harder to read','It violates the UML specification','It prevents code generation','It hides that a machine is calling, with machine retry and volume behaviour'],4);
+  add('M',14,'design','Which diagram most directly exposes timeout, retry, and idempotency requirements?',['Class diagram','Sequence diagram','Context diagram','Deployment diagram'],2,'Sequence diagrams show message order, so timeouts, retries and duplicate calls appear there.');
+  add('M',15,'design','Which diagram best shows compensating actions when one participant fails mid-process?',['State machine for a single object','Class diagram','Use case diagram','Activity diagram'],4);
+  add('M',16,'design','An AI-generated sequence diagram shows only the successful exchange. The missing element is:',['The failure and timeout paths','The actor names','The class attributes','The deployment nodes'],1);
+  add('M',17,'design','A synchronous call is appropriate when:',['The answer is required immediately and the operation is fast','The operation takes several minutes','The partner is frequently unavailable','The volume is very high and bursty'],1);
+  add('M',18,'design','An asynchronous boundary is appropriate when:',['The caller needs an immediate answer','Debugging simplicity is the priority','The work is slow, bulk, or the partner is unreliable','The two systems share a database'],3);
+  add('M',19,'design','What does an asynchronous design require that a synchronous one does not?',['Correlation of replies, ordering, and duplicate handling','A larger database','A faster network','Fewer integration tests'],1);
+  add('M',20,'design','A compensating action is required because:',['A distributed process that fails partway cannot be rolled back atomically','Partners charge per transaction','Networks are slow','Logs must be written'],1);
+  add('M',21,'life','Construction for integration differs from construction for a standalone module because:',['Different languages must be used','Coding standards no longer apply','Testing becomes optional','The interface is a contract with a party you do not control'],4);
+  add('M',22,'rest','An interface contract is best described as:',['A legal document signed by both organizations','The source code of the provider','A shared understanding between the two teams','A written artifact stating what consumers may rely on and what the provider guarantees'],4);
+  add('M',23,'rest','Which does a useful interface contract specify beyond operation signatures?',["The provider's staffing plan","The provider's test coverage percentage",'The meaning of every field, the complete error set, and the rules for changing the contract','The physical server locations'],3);
+  add('M',24,'ver','Once a contract is published and consumed, every change to it should be treated as:',['A documentation-only update','A breaking change until proved otherwise','A routine internal refactoring','A change requiring no notice'],2);
+  add('M',25,'ver','In the expand-then-contract sequence, the first step is to:',['Add the new field or operation alongside the old one','Notify consumers after deployment','Version the entire API','Remove the old field immediately'],1);
+  add('M',26,'ver','In expand-then-contract, when may the old field be removed?',['Only after verifying that no traffic remains on the old form','Only if the partner requests it','In the same release as the new one','After a fixed thirty days regardless of usage'],1);
+  add('M',27,'ver','Why must expand and contract never occur in one release?',['It complicates the changelog','It doubles the deployment time','It violates semantic versioning','Consumers have no window in which to migrate, so they break'],4);
+  add('M',28,'test','A unit test verifies:',['That a component is internally correct in isolation','That the network is reliable','That one side honours the published contract','That two systems work together end to end'],1);
+  add('M',29,'test','A contract test verifies:',['That the user interface renders correctly','The internal logic of a private method','That the whole system meets its performance target','That one side honours the published contract, independently of the other party'],4);
+  add('M',30,'test','Which test can run without the other party being available?',['A system test','A contract test','An acceptance test','An integration test'],2);
+  add('M',31,'arch','Micro-services eliminate the need to reason about data consistency.',T,2);
+  add('M',32,'life',"An anti-corruption layer prevents a partner's internal model from leaking into your design.",T,1);
+  add('M',33,'life','In the integration life cycle, decisions taken during architecture principally constrain:',['The recruitment plan','The licensing model','What construction can then do','The marketing schedule'],3);
+  add('M',34,'life','Which of the following are common integration pitfalls? (select all that apply)',['Publishing an interface definition before implementation','Designing and testing only the happy path','Assuming two systems share the same data semantics','Neglecting versioning until a breaking release',"Coupling to another system's internal model"],[2,3,4,5]);
+  add('M',35,'arch','Service-Oriented Architecture organises capability into:',['Coarse-grained reusable services, often mediated by a bus','Client-side scripts only','Many small independently deployable services owning their own data','A single monolithic executable'],1);
+  add('M',36,'arch','An Enterprise Service Bus centralises:',['Database storage','Application business logic','User authentication only','Routing, transformation, protocol bridging, and policy'],4);
+  add('M',37,'arch','The ESB is simultaneously a governance benefit and:',['A security guarantee','A performance optimisation','A single point of failure and an organizational bottleneck','A substitute for contracts'],3);
+  add('M',38,'arch','In classic web service architecture, WSDL provides:',['The transport protocol','The encryption layer','The service registry','A machine-readable interface definition forming a strong formal contract'],4);
+  add('M',39,'arch','What does UDDI provide in a classic web service architecture?',['The message envelope format','The interface definition language','A registry where services are published and discovered','The security token service'],3);
+  add('M',40,'arch','Why is UDDI less prominent in current practice?',['It is incompatible with HTTP','It was withdrawn from the standard','Central public discovery proved less useful than expected; internal catalogues largely replaced it','It requires proprietary licensing'],3);
+
+  var TOPICS=[['rest','REST & contracts'],['ver','Versioning & change'],['test','Testing'],['arch','SOA, ESB & microservices'],['life','Integration practice'],['mccall','McCall quality'],['design','Design & diagrams']];
+  var TN={};TOPICS.forEach(function(t){TN[t[0]]=t[1]});
+  var SETS=[['S','Summative 2'],['M','Midterms']];
+  var SN={S:'Summative 2',M:'Midterms'};
+  function label(q){return SN[q.set]+' · Q'+q.num}
+
+  var KEY='sysint-reviewer-v1';
+  var store={missed:{},known:{}};
+  try{var raw=localStorage.getItem(KEY);if(raw){var p=JSON.parse(raw);store.missed=p.missed||{};store.known=p.known||{}}}catch(e){}
+  function save(){try{localStorage.setItem(KEY,JSON.stringify(store))}catch(e){}}
+
+  var S={mode:'quiz',topics:{},sets:{},missedOnly:false,shuffle:true,quiz:null,fc:null,search:''};
+  var $=function(s){return document.querySelector(s)};
+  var view=$('#view');
+  function esc(s){return String(s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+  function shuf(a){a=a.slice();for(var i=a.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var t=a[i];a[i]=a[j];a[j]=t}return a}
+  function cnt(o){return Object.keys(o).length}
+  function pool(){
+    return QS.filter(function(q){
+      return (cnt(S.topics)===0||S.topics[q.topic])&&(cnt(S.sets)===0||S.sets[q.set])&&(!S.missedOnly||store.missed[q.id]);
+    });
+  }
+  function isCorrect(q,pick){
+    if(q.multi){return q.answer.slice().sort().join()===(pick||[]).slice().sort().join()}
+    return pick===q.answer;
+  }
+  function ansText(q){
+    if(q.multi)return q.answer.map(function(n){return '#'+n}).join(', ');
+    return '#'+q.answer+' '+q.options[q.answer-1];
+  }
+  function record(id,ok){
+    if(ok){delete store.missed[id];store.known[id]=1}else{store.missed[id]=1;delete store.known[id]}
+    save();renderFilters();
+  }
+
+  function renderFilters(){
+    var miss=Object.keys(store.missed).length;
+    var h='';
+    SETS.forEach(function(s){
+      var c=QS.filter(function(q){return q.set===s[0]}).length;
+      h+='<button class="chip" data-a="set" data-v="'+s[0]+'" aria-pressed="'+(!!S.sets[s[0]])+'">'+esc(s[1])+' <span>'+c+'</span></button>';
+    });
+    h+='<span class="sep"></span>';
+    TOPICS.forEach(function(t){
+      var c=QS.filter(function(q){return q.topic===t[0]}).length;
+      h+='<button class="chip" data-a="topic" data-v="'+t[0]+'" aria-pressed="'+(!!S.topics[t[0]])+'">'+esc(t[1])+' <span>'+c+'</span></button>';
+    });
+    h+='<span class="sep"></span>';
+    h+='<button class="chip" data-a="missed" aria-pressed="'+S.missedOnly+'">Missed only <span>'+miss+'</span></button>';
+    h+='<button class="chip" data-a="shuffle" aria-pressed="'+S.shuffle+'">Shuffle</button>';
+    $('#filters').innerHTML=h;
+    $('#poolnote').textContent=pool().length+' of '+QS.length+' questions selected. Nothing selected in a row means all of it.';
+  }
+  function resetSessions(){S.quiz=null;S.fc=null;renderFilters();renderView()}
+  function renderTabs(){
+    document.querySelectorAll('#tabs .tab').forEach(function(b){b.setAttribute('aria-selected',String(b.dataset.v===S.mode))});
+  }
+  function emptyCard(){
+    return '<div class="card"><p class="empty">Nothing to show with these filters. '+(S.missedOnly?'You have no missed questions in this selection yet.':'Try clearing a filter.')+'</p></div>';
+  }
+
+  /* ---------- Quiz ---------- */
+  function ensureQuiz(){
+    if(!S.quiz){var l=pool();S.quiz={list:S.shuffle?shuf(l):l,i:0,res:{},cur:null,sel:[]}}
+  }
+  function renderQuiz(){
+    if(!pool().length){view.innerHTML=emptyCard();return}
+    ensureQuiz();
+    var z=S.quiz,n=z.list.length;
+    if(z.i>=n){renderSummary();return}
+    var q=z.list[z.i],a=z.cur;
+    var done=Object.keys(z.res).filter(function(k){return z.res[k]}).length;
+    var h='<div class="card">';
+    h+='<div class="bar" aria-hidden="true"><i style="width:'+Math.round(z.i/n*100)+'%"></i></div>';
+    h+='<div class="meta"><span>Question '+(z.i+1)+' of '+n+'</span><span class="tag">'+esc(TN[q.topic])+'</span><span class="qn">'+esc(label(q))+'</span><span class="grow"></span><span>'+done+' correct</span></div>';
+    h+='<p class="prompt">'+esc(q.prompt)+'</p>';
+    h+='<div class="opts">';
+    q.options.forEach(function(o,i){
+      var num=i+1,c='opt';
+      if(!a){
+        if(q.multi&&z.sel.indexOf(num)>-1)c+=' sel';
+      }else if(q.multi){
+        var inA=q.answer.indexOf(num)>-1,s=a.pick.indexOf(num)>-1;
+        if(inA&&s)c+=' correct';else if(inA)c+=' missed';else if(s)c+=' wrong';else c+=' dim';
+      }else{
+        if(num===q.answer)c+=' correct';else if(num===a.pick)c+=' wrong';else c+=' dim';
+      }
+      h+='<button class="'+c+'" data-a="'+(q.multi?'tog':'opt')+'" data-v="'+num+'"'+(a?' disabled':'')+(q.multi&&!a?' aria-pressed="'+(z.sel.indexOf(num)>-1)+'"':'')+'><b class="pos">'+num+'</b><span>'+esc(o)+'</span></button>';
+    });
+    h+='</div>';
+    if(!a&&q.multi){
+      h+='<div class="row"><button class="btn" data-a="check"'+(z.sel.length?'':' disabled')+'>Check answer</button><span class="hint">Select every correct option, then check.</span></div>';
+    }
+    if(a){
+      if(a.correct)h+='<div class="fb ok" role="status">Correct.</div>';
+      else h+='<div class="fb no" role="status">Not quite. Correct answer: <b>'+esc(ansText(q))+'</b></div>';
+      if(q.note)h+='<div class="note">'+esc(q.note)+'</div>';
+      h+='<div class="row"><span class="grow"></span><button class="btn" data-a="next">'+(z.i+1>=n?'See results':'Next')+'</button></div>';
+    }
+    h+='</div>';
+    view.innerHTML=h;
+    if(a){var nb=view.querySelector('[data-a="next"]');if(nb)nb.focus()}
+  }
+  function renderSummary(){
+    var z=S.quiz,n=z.list.length;
+    var right=z.list.filter(function(q){return z.res[q.id]}).length;
+    var pct=Math.round(right/n*100);
+    var missed=z.list.filter(function(q){return !z.res[q.id]});
+    var h='<div class="card"><div class="meta"><span>Round complete</span></div>';
+    h+='<p class="score">'+right+' / '+n+' <span style="font-size:.4em;color:var(--muted);font-family:var(--f-body)">'+pct+'%</span></p>';
+    h+='<div class="tb">';
+    TOPICS.forEach(function(t){
+      var qs=z.list.filter(function(q){return q.topic===t[0]});if(!qs.length)return;
+      var r=qs.filter(function(q){return z.res[q.id]}).length;
+      h+='<div><span>'+esc(t[1])+'</span><span class="bar"><i style="width:'+Math.round(r/qs.length*100)+'%"></i></span><em>'+r+'/'+qs.length+'</em></div>';
+    });
+    h+='</div>';
+    if(missed.length){
+      h+='<p class="hint">To review ('+missed.length+')</p><ul class="miss">';
+      missed.forEach(function(q){h+='<li>'+esc(label(q))+'. '+esc(q.prompt)+'<br><b>'+esc(ansText(q))+'</b></li>'});
+      h+='</ul>';
+    }
+    h+='<div class="row">';
+    if(missed.length)h+='<button class="btn" data-a="retry">Retry the '+missed.length+' missed</button>';
+    h+='<button class="btn'+(missed.length?' ghost':'')+'" data-a="restart">New round</button></div></div>';
+    view.innerHTML=h;
+  }
+  function finish(q,pick){
+    var z=S.quiz;
+    z.cur={pick:pick,correct:isCorrect(q,pick)};
+    z.res[q.id]=z.cur.correct;record(q.id,z.cur.correct);renderQuiz();
+  }
+  function curQ(){var z=S.quiz;return z&&z.i<z.list.length?z.list[z.i]:null}
+
+  /* ---------- Flashcards ---------- */
+  function ensureFc(){
+    if(!S.fc){var l=pool();S.fc={list:S.shuffle?shuf(l):l,i:0,flip:false,res:{}}}
+  }
+  function optList(q){return '<ol>'+q.options.map(function(o){return '<li>'+esc(o)+'</li>'}).join('')+'</ol>'}
+  function renderCards(){
+    if(!pool().length){view.innerHTML=emptyCard();return}
+    ensureFc();
+    var f=S.fc,n=f.list.length;
+    if(f.i>=n){
+      var k=Object.keys(f.res).filter(function(x){return f.res[x]}).length;
+      view.innerHTML='<div class="card"><div class="meta"><span>Deck finished</span></div><p class="score">'+k+' / '+n+'</p><p class="hint">cards marked as known this round</p><div class="row"><button class="btn" data-a="fcrestart">Go again</button></div></div>';
+      return;
+    }
+    var q=f.list[f.i];
+    var st=store.known[q.id]?'<span class="status k">Marked known</span>':(store.missed[q.id]?'<span class="status m">Marked missed</span>':'');
+    var h='<div class="card"><div class="bar" aria-hidden="true"><i style="width:'+Math.round(f.i/n*100)+'%"></i></div>';
+    h+='<div class="meta"><span>Card '+(f.i+1)+' of '+n+'</span><span class="tag">'+esc(TN[q.topic])+'</span><span class="qn">'+esc(label(q))+'</span><span class="grow"></span>'+st+'</div>';
+    if(!f.flip){
+      h+='<button class="flash" data-a="flip" aria-label="Show answer"><span class="lbl">Question</span><p class="big">'+esc(q.prompt)+'</p>'+optList(q)+'<span class="hint">Tap to show the answer</span></button>';
+    }else{
+      var body;
+      if(q.multi){body='<p class="big">'+q.answer.map(function(n2){return '#'+n2}).join(', ')+'</p><ol style="color:var(--ink)">'+q.answer.map(function(n2){return '<li value="'+n2+'">'+esc(q.options[n2-1])+'</li>'}).join('')+'</ol>'}
+      else{body='<p class="big">#'+q.answer+' '+esc(q.options[q.answer-1])+'</p>'}
+      h+='<button class="flash back" data-a="flip" aria-label="Show question"><span class="lbl">Answer</span>'+body+(q.note?'<span class="hint">'+esc(q.note)+'</span>':'')+'<span class="hint">'+esc(q.prompt)+'</span></button>';
+    }
+    h+='<div class="row"><button class="btn ghost" data-a="prev"'+(f.i===0?' disabled':'')+'>Back</button><span class="grow"></span><button class="btn ghost" data-a="fcmiss">Missed it</button><button class="btn" data-a="fcknown">Got it</button></div>';
+    h+='<p class="hint">Keyboard: space flips, arrow keys move.</p></div>';
+    view.innerHTML=h;
+  }
+
+  /* ---------- Answer key ---------- */
+  function keyList(){
+    var s=S.search.trim().toLowerCase();
+    var l=pool().filter(function(q){
+      if(!s)return true;
+      return (q.prompt+' '+q.options.join(' ')+' '+label(q)).toLowerCase().indexOf(s)>-1;
+    });
+    if(!l.length)return '<p class="empty">No matches.</p>';
+    return '<ul class="key">'+l.map(function(q){
+      var opts=q.options.map(function(o,i){
+        var right=q.multi?q.answer.indexOf(i+1)>-1:q.answer===i+1;
+        return '<li class="'+(right?'right':'')+'"><i>'+(i+1)+'</i><span>'+esc(o)+'</span></li>';
+      }).join('');
+      return '<li><span class="qn">'+esc(label(q))+' · answer '+esc(q.multi?q.answer.join(', '):String(q.answer))+'</span><span class="q">'+esc(q.prompt)+'</span><ol>'+opts+'</ol>'+(q.note?'<div class="note">'+esc(q.note)+'</div>':'')+'</li>';
+    }).join('')+'</ul>';
+  }
+  function renderKey(){
+    view.innerHTML='<div class="card"><input id="search" class="search" type="search" placeholder="Search questions or answers" aria-label="Search" value="'+esc(S.search)+'"><p class="hint">Option numbers match the order shown in your Canvas screenshots. Highlighted rows are the correct answers.</p><div id="keylist">'+keyList()+'</div></div>';
+  }
+
+  function renderView(){
+    renderTabs();
+    if(S.mode==='quiz')renderQuiz();else if(S.mode==='cards')renderCards();else renderKey();
+  }
+
+  /* ---------- Events ---------- */
+  function fcAdvance(ok){
+    var f=S.fc,q=f.list[f.i];f.res[q.id]=ok;record(q.id,ok);f.i++;f.flip=false;renderCards();
+  }
+  function toggle(o,k){if(o[k])delete o[k];else o[k]=1}
+  document.addEventListener('click',function(e){
+    var b=e.target.closest('[data-a]');if(!b)return;
+    var a=b.dataset.a,v=b.dataset.v;
+    if(a==='mode'){S.mode=v;renderView()}
+    else if(a==='set'){toggle(S.sets,v);resetSessions()}
+    else if(a==='topic'){toggle(S.topics,v);resetSessions()}
+    else if(a==='missed'){S.missedOnly=!S.missedOnly;resetSessions()}
+    else if(a==='shuffle'){S.shuffle=!S.shuffle;resetSessions()}
+    else if(a==='opt'){var q=curQ();if(q&&!S.quiz.cur)finish(q,+v)}
+    else if(a==='tog'){
+      var z=S.quiz;if(!z||z.cur)return;var n=+v,ix=z.sel.indexOf(n);
+      if(ix>-1)z.sel.splice(ix,1);else z.sel.push(n);renderQuiz();
+    }
+    else if(a==='check'){var q2=curQ();if(q2&&!S.quiz.cur&&S.quiz.sel.length)finish(q2,S.quiz.sel.slice())}
+    else if(a==='next'){S.quiz.i++;S.quiz.cur=null;S.quiz.sel=[];renderQuiz()}
+    else if(a==='retry'){var z2=S.quiz;var m=z2.list.filter(function(q3){return !z2.res[q3.id]});S.quiz={list:shuf(m),i:0,res:{},cur:null,sel:[]};renderQuiz()}
+    else if(a==='restart'){S.quiz=null;renderQuiz()}
+    else if(a==='flip'){S.fc.flip=!S.fc.flip;renderCards()}
+    else if(a==='prev'){if(S.fc.i>0){S.fc.i--;S.fc.flip=false;renderCards()}}
+    else if(a==='fcknown')fcAdvance(true);
+    else if(a==='fcmiss')fcAdvance(false);
+    else if(a==='fcrestart'){S.fc=null;renderCards()}
+  });
+  document.addEventListener('input',function(e){
+    if(e.target.id==='search'){S.search=e.target.value;$('#keylist').innerHTML=keyList()}
+  });
+  document.addEventListener('keydown',function(e){
+    var t=e.target;
+    if(t&&t.tagName==='INPUT')return;
+    if(S.mode==='quiz'){
+      var q=curQ();
+      if(q&&!S.quiz.cur&&/^[1-9]$/.test(e.key)){
+        var num=+e.key;
+        if(num<=q.options.length){
+          if(q.multi){var ix=S.quiz.sel.indexOf(num);if(ix>-1)S.quiz.sel.splice(ix,1);else S.quiz.sel.push(num);renderQuiz()}
+          else finish(q,num);
+        }
+      }
+    }
+    if(S.mode==='cards'&&S.fc&&S.fc.i<S.fc.list.length){
+      if(e.key===' '&&!(t&&t.tagName==='BUTTON'&&t.dataset.a!=='flip')){e.preventDefault();S.fc.flip=!S.fc.flip;renderCards()}
+      else if(e.key==='ArrowRight'){S.fc.i=Math.min(S.fc.i+1,S.fc.list.length);S.fc.flip=false;renderCards()}
+      else if(e.key==='ArrowLeft'&&S.fc.i>0){S.fc.i--;S.fc.flip=false;renderCards()}
+    }
+  });
+
+  renderFilters();
+  renderView();
+})();
+</script>
+
+</body>
+</html>
